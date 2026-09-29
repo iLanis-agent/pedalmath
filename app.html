@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PedalMath - calculator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #131114; color: #f4eff5; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  main { max-width: 760px; padding: 32px 20px 48px; width: 100%; box-sizing: border-box; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; }
+  p.sub { color: #d8c9dc; margin: 0 0 20px; }
+  .card { background: #1b171d; border: 1px solid #3a2c3c; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; color: #e8d8ea; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+  label { display: block; color: #bcabc2; font-size: 0.82rem; margin-bottom: 4px; }
+  input, select { width: 100%; box-sizing: border-box; background: #131114; border: 1px solid #4a3850; color: #f4eff5; border-radius: 8px; padding: 9px 10px; font-size: 0.95rem; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .presets button { background: #241c26; color: #eadfee; border: 1px solid #4a3850; border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; cursor: pointer; }
+  .presets button:hover { background: #3a2c3c; }
+  .out { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .metric { background: #131114; border: 1px solid #3a2c3c; border-radius: 10px; padding: 12px 14px; }
+  .metric .v { font-size: 1.3rem; font-weight: 700; color: #ef9cc8; }
+  .metric .k { color: #bcabc2; font-size: 0.78rem; margin-top: 2px; }
+  .note { color: #96889b; font-size: 0.82rem; line-height: 1.5; margin-top: 10px; }
+  .table { font-family: ui-monospace, monospace; font-size: 0.82rem; color: #ef9cc8; margin-top: 10px; line-height: 1.7; }
+  a.back { color: #ef9cc8; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>&#128690; PedalMath</h1>
+  <p class="sub">Watts in, truth out.</p>
+  <div class="presets">
+    <button data-p="club">Club rider</button>
+    <button data-p="racer">Strong amateur</button>
+    <button data-p="newbie">Getting started</button>
+    <button data-p="pro">Pro territory</button>
+  </div>
+  <div class="card">
+    <h2>1. Your engine</h2>
+    <div class="grid">
+      <div><label>Test type</label><select id="testtype">
+        <option value="20min" selected>20-minute all-out</option>
+        <option value="ramp">Ramp test (best 1 min)</option>
+      </select></div>
+      <div><label>Test average watts</label><input id="testwatts" type="number" value="250" min="50" max="800"></div>
+      <div><label>Rider weight (kg)</label><input id="riderkg" type="number" value="75" step="0.5" min="35" max="150"></div>
+      <div><label>Bike + kit (kg)</label><input id="bikekg" type="number" value="9" step="0.5" min="5" max="25"></div>
+    </div>
+    <div class="out" style="margin-top:12px">
+      <div class="metric"><div class="v" id="o-ftp">-</div><div class="k">Estimated FTP</div></div>
+      <div class="metric"><div class="v" id="o-wkg">-</div><div class="k">Watts per kg (rider)</div></div>
+      <div class="metric"><div class="v" id="o-band">-</div><div class="k">Honest band</div></div>
+    </div>
+    <div class="table" id="o-zones"></div>
+  </div>
+  <div class="card">
+    <h2>2. What the watts buy</h2>
+    <div class="grid">
+      <div><label>Power you can hold (W)</label><input id="holdwatts" type="number" value="238" min="50" max="800"></div>
+      <div><label>Gradient (%) - negative is downhill</label><input id="gradient" type="number" value="0" step="0.5" min="-15" max="25"></div>
+      <div><label>Position</label><select id="cda">
+        <option value="0.40">Tops - upright</option>
+        <option value="0.32" selected>Hoods - standard</option>
+        <option value="0.27">Drops - tucked</option>
+        <option value="0.22">Aero bars - TT position</option>
+      </select></div>
+      <div><label>Climb distance (km, for the clock)</label><input id="climbkm" type="number" value="13.8" step="0.1" min="0.1"></div>
+    </div>
+    <div class="out" style="margin-top:12px">
+      <div class="metric"><div class="v" id="o-speed">-</div><div class="k">Speed at that power</div></div>
+      <div class="metric"><div class="v" id="o-climb">-</div><div class="k">Time for the climb</div></div>
+      <div class="metric"><div class="v" id="o-kcal">-</div><div class="k">Food kcal per hour at that power</div></div>
+      <div class="metric"><div class="v" id="o-split">-</div><div class="k">Aero vs rolling vs gravity share</div></div>
+    </div>
+    <p class="note" id="o-note"></p>
+  </div>
+  <p class="note">Physics: aero drag scales with speed cubed, rolling resistance and gravity scale with speed. At 30 km/h on the flat, roughly 80% of your watts fight the air - which is why the tuck is free speed and the climb is not.</p>
+  <p><a class="back" href="index.html">&larr; Back to PedalMath</a></p>
+</main>
+<script src="engine.js"></script>
+<script>
+(function () {
+  var ids = ['testtype','testwatts','riderkg','bikekg','holdwatts','gradient','cda','climbkm'];
+  function num(id) { var v = parseFloat(document.getElementById(id).value); return isFinite(v) ? v : 0; }
+  function compute() {
+    if (typeof PedalMath === 'undefined') return;
+    var tw = num('testwatts');
+    var ftp = document.getElementById('testtype').value === 'ramp' ? PedalMath.ftpFromRamp(tw) : PedalMath.ftpFrom20min(tw);
+    var rider = num('riderkg'), bike = num('bikekg');
+    if (!ftp || !(rider > 0)) {
+      ['o-ftp','o-wkg','o-band'].forEach(function(id){ document.getElementById(id).textContent = '-'; });
+      document.getElementById('o-zones').textContent = '';
+    } else {
+      var wkg = PedalMath.wattsPerKg(ftp, rider);
+      document.getElementById('o-ftp').textContent = Math.round(ftp) + ' W';
+      document.getElementById('o-wkg').textContent = wkg.toFixed(2);
+      document.getElementById('o-band').textContent = PedalMath.wkgBand(wkg);
+      document.getElementById('o-zones').innerHTML = PedalMath.zones(ftp).map(function (z) {
+        return z.zone + ': ' + z.lo + (z.hi === null ? '+ W' : '-' + z.hi + ' W');
+      }).join('<br>');
+    }
+    var watts = num('holdwatts');
+    var grad = num('gradient') / 100;
+    var cda = num('cda');
+    var total = rider + bike;
+    if (!(watts > 0) || !(total > 0)) {
+      ['o-speed','o-climb','o-kcal','o-split'].forEach(function(id){ document.getElementById(id).textContent = '-'; });
+      document.getElementById('o-note').textContent = '';
+      return;
+    }
+    var v = PedalMath.speedFromPower(watts, total, grad, {cda: cda});
+    document.getElementById('o-speed').textContent = (v * 3.6).toFixed(1) + ' km/h';
+    var km = num('climbkm');
+    if (grad > 0 && km > 0) {
+      var t = PedalMath.climbTime(watts, total, km, grad, {cda: cda});
+      document.getElementById('o-climb').textContent = PedalMath.fmtDuration(t);
+    } else {
+      document.getElementById('o-climb').textContent = 'flat road - no clock';
+    }
+    var kjHour = PedalMath.workKj(watts, 3600);
+    document.getElementById('o-kcal').textContent = Math.round(PedalMath.kcalFromKj(kjHour)) + ' kcal/h';
+    var aero = 0.5 * 1.225 * cda * Math.pow(v, 3);
+    var roll = 0.005 * total * 9.81 * v;
+    var grav = total * 9.81 * Math.max(grad, 0) * v;
+    var sum = aero + roll + grav;
+    document.getElementById('o-split').textContent = Math.round(aero / sum * 100) + '% / ' + Math.round(roll / sum * 100) + '% / ' + Math.round(grav / sum * 100) + '%';
+    document.getElementById('o-note').textContent = grad >= 0.04
+      ? 'Up here gravity eats almost everything. The honest way up is lighter mass or more watts; the wheel on the downtube is decoration.'
+      : (grad <= -0.02
+        ? 'Free speed downhill: gravity is paying the bill the aero drag usually sends you.'
+        : 'On the flat the air is the wall. Speed costs the cube of itself - 10% faster is about 33% more watts.');
+  }
+  var presets = {
+    club:   {testtype:'20min', testwatts:250, riderkg:75, bikekg:9, holdwatts:238, gradient:0, cda:'0.32', climbkm:13.8},
+    racer:  {testtype:'20min', testwatts:320, riderkg:68, bikekg:8, holdwatts:304, gradient:5, cda:'0.27', climbkm:13.8},
+    newbie: {testtype:'20min', testwatts:160, riderkg:85, bikekg:11, holdwatts:152, gradient:0, cda:'0.40', climbkm:5},
+    pro:    {testtype:'ramp', testwatts:520, riderkg:63, bikekg:7, holdwatts:390, gradient:8.1, cda:'0.32', climbkm:13.8}
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('.presets button'), function (b) {
+    b.addEventListener('click', function () {
+      var p = presets[b.getAttribute('data-p')];
+      if (!p) return;
+      Object.keys(p).forEach(function (k) { document.getElementById(k).value = p[k]; });
+      compute();
+    });
+  });
+  ids.forEach(function (id) {
+    document.getElementById(id).addEventListener('input', compute);
+    document.getElementById(id).addEventListener('change', compute);
+  });
+  compute();
+})();
+</script>
+</body>
+</html>
